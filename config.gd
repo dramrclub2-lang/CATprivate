@@ -18,3 +18,8 @@ const CHECKPOINT_COUNT_PER_STAGE := 1
 
 # 強制停止(仕様書 §15・仮置き)
 const FORCED_STOP_SEC := 1.0
+
+# 猫の移動(仕様書 §7・仮置き。遊んで調整)
+const RUN_SPEED := 120.0       # px/秒
+const JUMP_VELOCITY := -280.0  # 上向きが負
+const GRAVITY := 900.0         # px/秒^2
