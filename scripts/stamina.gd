@@ -22,15 +22,6 @@ func restore(percent: float) -> void:
 	value = minf(value + Config.STAMINA_MAX * percent / 100.0, Config.STAMINA_MAX)
 	_update_exhausted()
 
-## 足りれば消費して true。足りなければ何もせず false。
-func try_spend(amount: float) -> bool:
-	if not can_dash() or value < amount:
-		return false
-	value -= amount
-	if value <= 0.0:
-		_exhausted = true
-	return true
-
 func _update_exhausted() -> void:
 	if _exhausted and value >= Config.STAMINA_MAX * Config.DASH_RESUME_RATIO:
 		_exhausted = false

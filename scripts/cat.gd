@@ -23,11 +23,13 @@ func _physics_process(delta: float) -> void:
 		velocity.x = velocity_for(dir, true, dashing).x
 		if jump_requested:
 			velocity.y = Config.JUMP_VELOCITY
-			if dashing and stamina.try_spend(Config.DASH_JUMP_COST):
-				_dash_jump_locked = true  # ダッシュ速度のまま着地まで飛ぶ
+			if dashing:
+				_dash_jump_locked = true  # ダッシュ速度のまま着地まで飛ぶ(スタミナは減らさない)
 	else:
 		velocity.y += Config.GRAVITY * delta
 		if not _dash_jump_locked:
 			velocity.x = velocity_for(dir, false).x
-	stamina.tick(delta, dashing)
+	# ダッシュジャンプ中は、スタミナを減らさず、回復もさせない(凍結)
+	if not _dash_jump_locked:
+		stamina.tick(delta, dashing)
 	move_and_slide()

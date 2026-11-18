@@ -48,12 +48,3 @@ func test_item_restore_clears_exhaustion():
 	_s.tick(1000.0, true)
 	_s.restore(Config.ITEM_SALMON_PERCENT)
 	assert_true(_s.can_dash())
-
-func test_try_spend_deducts():
-	assert_true(_s.try_spend(Config.DASH_JUMP_COST))
-	assert_almost_eq(_s.value, Config.STAMINA_MAX - Config.DASH_JUMP_COST, 0.001)
-
-func test_try_spend_refused_when_short():
-	_s.value = Config.DASH_JUMP_COST - 1.0
-	assert_false(_s.try_spend(Config.DASH_JUMP_COST))
-	assert_eq(_s.value, Config.DASH_JUMP_COST - 1.0, "足りない時は減らない")

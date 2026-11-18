@@ -89,16 +89,17 @@ func test_dash_jump_keeps_speed_after_releasing_dash_in_air():
 	assert_false(_cat.is_on_floor(), "前提: 空中")
 	assert_eq(_cat.velocity.x, Config.DASH_SPEED, "着地までダッシュ速度を保つ")
 
-func test_dash_jump_costs_stamina():
+func test_dash_jump_does_not_cost_stamina():
+	# ダッシュ中の減りだけ。ジャンプ自体では減らない(仕様書 §8)
 	Input.action_press("move_right")
 	Input.action_press("dash")
 	await wait_physics_frames(5)
 	Input.action_press("jump")
 	await wait_physics_frames(2)
-	assert_lt(_cat.stamina.value, Config.STAMINA_MAX - Config.DASH_JUMP_COST + 0.001)
+	assert_gt(_cat.stamina.value, Config.STAMINA_MAX - 10.0, "ダッシュ数フレーム分の減りだけで、ジャンプ分は減らない")
 
-func test_dash_jump_refused_when_stamina_short_falls_back_to_normal_jump():
-	_cat.stamina.value = Config.DASH_JUMP_COST - 1.0
+func test_no_dash_jump_when_stamina_exhausted():
+	_cat.stamina.tick(1000.0, true)  # 使い切る
 	Input.action_press("move_right")
 	Input.action_press("dash")
 	await wait_physics_frames(3)
@@ -106,7 +107,7 @@ func test_dash_jump_refused_when_stamina_short_falls_back_to_normal_jump():
 	await wait_physics_frames(3)
 	assert_lt(_cat.velocity.y, 0.0, "ジャンプ自体はできる")
 	assert_false(_cat.is_on_floor())
-	assert_eq(_cat.velocity.x, Config.RUN_SPEED, "空中は通常の走り速度。ダッシュ速度は付かない")
+	assert_eq(_cat.velocity.x, Config.RUN_SPEED, "スタミナ切れなら、空中は通常の走り速度")
 
 func test_speed_returns_to_normal_after_dash_jump_lands():
 	Input.action_press("move_right")
@@ -119,3 +120,21 @@ func test_speed_returns_to_normal_after_dash_jump_lands():
 	await _land()
 	await wait_physics_frames(3)
 	assert_eq(_cat.velocity.x, Config.RUN_SPEED, "着地後は通常の走り")
+
+func test_stamina_frozen_during_dash_jump():
+	# ダッシュジャンプ中は、減りも回復もしない。着地したら通常に戻る
+	Input.action_press("move_right")
+	Input.action_press("dash")
+	await wait_physics_frames(5)
+	Input.action_press("jump")
+	await wait_physics_frames(3)
+	Input.action_release("jump")
+	Input.action_release("dash")
+	assert_false(_cat.is_on_floor(), "前提: 空中")
+	var frozen: float = _cat.stamina.value
+	await wait_physics_frames(5)
+	assert_false(_cat.is_on_floor(), "前提: まだ空中")
+	assert_eq(_cat.stamina.value, frozen, "飛んでいる間は、減りも回復もしない")
+	await _land()
+	await wait_physics_frames(30)
+	assert_gt(_cat.stamina.value, frozen, "着地後は、時間経過で回復する")
