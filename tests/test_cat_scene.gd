@@ -11,8 +11,7 @@ func before_each():
 	await wait_physics_frames(60)  # 着地するまで待つ
 
 func after_each():
-	for a in ["move_left", "move_right", "jump"]:
-		Input.action_release(a)
+	_release_all()
 
 func test_runs_right_then_stops_when_released():
 	Input.action_press("move_right")
@@ -33,3 +32,90 @@ func test_jump_leaves_floor():
 	await wait_physics_frames(3)
 	assert_lt(_cat.velocity.y, 0.0, "上向きの速度になる")
 	assert_false(_cat.is_on_floor())
+
+# ---- ダッシュとダッシュジャンプ ----
+
+func _release_all():
+	for a in ["move_left", "move_right", "jump", "dash"]:
+		Input.action_release(a)
+
+func _land():
+	await wait_physics_frames(3)
+	await wait_until(func(): return _cat.is_on_floor(), 3.0)
+
+# 右へ走り、ジャンプして着地するまでの横移動量を返す
+func _jump_distance(dash: bool) -> float:
+	Input.action_press("move_right")
+	if dash:
+		Input.action_press("dash")
+	await wait_physics_frames(5)
+	var x0 := _cat.global_position.x
+	Input.action_press("jump")
+	await wait_physics_frames(2)
+	Input.action_release("jump")
+	await _land()
+	return _cat.global_position.x - x0
+
+func test_dash_on_floor_uses_dash_speed():
+	Input.action_press("move_right")
+	Input.action_press("dash")
+	await wait_physics_frames(5)
+	assert_eq(_cat.velocity.x, Config.DASH_SPEED)
+
+func test_dash_without_direction_does_not_drain():
+	Input.action_press("dash")
+	await wait_physics_frames(20)
+	assert_eq(_cat.stamina.value, Config.STAMINA_MAX)
+
+func test_dash_jump_goes_farther_than_normal_jump():
+	var normal := await _jump_distance(false)
+	_release_all()
+	_cat.global_position = Vector2(100, 100)
+	_cat.velocity = Vector2.ZERO
+	_cat.stamina = Stamina.new()
+	await wait_physics_frames(60)
+	var dashed := await _jump_distance(true)
+	assert_gt(dashed, normal * 1.3, "ダッシュジャンプは通常ジャンプより明らかに遠い")
+
+func test_dash_jump_keeps_speed_after_releasing_dash_in_air():
+	Input.action_press("move_right")
+	Input.action_press("dash")
+	await wait_physics_frames(5)
+	Input.action_press("jump")
+	await wait_physics_frames(3)
+	Input.action_release("jump")
+	Input.action_release("dash")
+	await wait_physics_frames(3)
+	assert_false(_cat.is_on_floor(), "前提: 空中")
+	assert_eq(_cat.velocity.x, Config.DASH_SPEED, "着地までダッシュ速度を保つ")
+
+func test_dash_jump_costs_stamina():
+	Input.action_press("move_right")
+	Input.action_press("dash")
+	await wait_physics_frames(5)
+	Input.action_press("jump")
+	await wait_physics_frames(2)
+	assert_lt(_cat.stamina.value, Config.STAMINA_MAX - Config.DASH_JUMP_COST + 0.001)
+
+func test_dash_jump_refused_when_stamina_short_falls_back_to_normal_jump():
+	_cat.stamina.value = Config.DASH_JUMP_COST - 1.0
+	Input.action_press("move_right")
+	Input.action_press("dash")
+	await wait_physics_frames(3)
+	Input.action_press("jump")
+	await wait_physics_frames(3)
+	assert_lt(_cat.velocity.y, 0.0, "ジャンプ自体はできる")
+	assert_false(_cat.is_on_floor())
+	assert_eq(_cat.velocity.x, Config.RUN_SPEED, "空中は通常の走り速度。ダッシュ速度は付かない")
+
+func test_speed_returns_to_normal_after_dash_jump_lands():
+	Input.action_press("move_right")
+	Input.action_press("dash")
+	await wait_physics_frames(5)
+	Input.action_press("jump")
+	await wait_physics_frames(2)
+	Input.action_release("jump")
+	Input.action_release("dash")
+	await _land()
+	await wait_physics_frames(3)
+	assert_eq(_cat.velocity.x, Config.RUN_SPEED, "着地後は通常の走り")
